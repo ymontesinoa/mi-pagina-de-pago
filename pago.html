@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pagar con USDT en Polygon</title>
+    <script src="https://cdn.transak.com/sdk/v1.0.0/transak.js"></script>
+</head>
+<body>
+
+    <h1>Pagar con USDT en Polygon</h1>
+
+    <button id="transak-button">Pagar con tarjeta</button>
+
+    <script>
+        document.getElementById('transak-button').addEventListener('click', function() {
+            const transak = new TransakSDK({
+                apiKey: "TU_API_KEY_DE_TRANSAK",  // Obtén esta clave de tu cuenta en Transak
+                environment: "STAGING",  // O "PRODUCTION" si ya estás listo para producción
+                defaultCryptoCurrency: "USDT",
+                network: "polygon",  // Usamos Polygon como red
+                walletAddress: "0xTuWalletDireccion",  // La wallet de tu sistema (direccion de Polygon)
+                themeColor: "#4caf50",  // Puedes personalizar el color del tema
+            });
+
+            transak.init();  // Inicia el widget
+        });
+    </script>
+
+</body>
+</html>
