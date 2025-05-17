@@ -1,47 +1,102 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Probar Transak API</title>
+  <meta charset="UTF-8" />
+  <title>Firmar transferencia Solana Testnet</title>
+  <script src="https://unpkg.com/@solana/web3.js@1.73.0/lib/index.iife.min.js"></script>
 </head>
 <body>
-  <h1>Probar Transak API</h1>
-  <button id="probar-api">Enviar Solicitud</button>
+  <h2>Generar y firmar transferencia en Solana Testnet</h2>
 
-  <pre id="resultado"></pre>
+  <label>Wallet Origen (Emisor):</label><br />
+  <input id="inputFrom" type="text" placeholder="Ejemplo: EmisorPublicKeyBase58" size="60" /><br /><br />
+
+  <label>Wallet Destino:</label><br />
+  <input id="inputTo" type="text" placeholder="Ejemplo: DestinoPublicKeyBase58" size="60" /><br /><br />
+
+  <label>Wallet que paga fees:</label><br />
+  <input id="inputFeePayer" type="text" placeholder="Ejemplo: FeePayerPublicKeyBase58" size="60" /><br /><br />
+
+  <label>Monto en SOL:</label><br />
+  <input id="inputAmount" type="number" step="0.0001" value="0.8" /><br /><br />
+
+  <button id="btnCreate">Crear y firmar transacción</button><br /><br />
+
+  <pre id="output"></pre>
 
   <script>
-    document.getElementById("probar-api").addEventListener("click", async () => {
-      const responseElement = document.getElementById("resultado");
+    (async () => {
+      const { Connection, clusterApiUrl, PublicKey, Transaction, SystemProgram } = solanaWeb3;
 
-      const data = {
-        cryptoCurrencyCode: "USDT",
-        network: "polygon",
-        walletAddress: "0x34436b4820143D234B3c1E524A1323930fEb413B",
-        fiatAmount: "20",
-        fiatCurrency: "USD",
-        partnerOrderId: "test123456",
-        userData: {
-          email: "test@example.com"
+      const connection = new Connection(clusterApiUrl('testnet'), 'confirmed');
+
+      const btnCreate = document.getElementById('btnCreate');
+      const output = document.getElementById('output');
+
+      btnCreate.onclick = async () => {
+        output.textContent = "";
+
+        if (!window.solana || !window.solana.isPhantom) {
+          alert("Instala Phantom Wallet y conéctala.");
+          return;
+        }
+
+        try {
+          const fromStr = document.getElementById('inputFrom').value.trim();
+          const toStr = document.getElementById('inputTo').value.trim();
+          const feePayerStr = document.getElementById('inputFeePayer').value.trim();
+          const amountSol = parseFloat(document.getElementById('inputAmount').value);
+
+          if (!fromStr || !toStr || !feePayerStr || isNaN(amountSol) || amountSol <= 0) {
+            alert("Completa todos los campos correctamente.");
+            return;
+          }
+
+          const fromPubkey = new PublicKey(fromStr);
+          const toPubkey = new PublicKey(toStr);
+          const feePayerPubkey = new PublicKey(feePayerStr);
+
+          // Solicitar conexión con Phantom
+          await window.solana.connect();
+          const walletPubkey = window.solana.publicKey;
+
+          // Verificar que Phantom esté conectado a la wallet origen (emisor) para firmar
+          if (!walletPubkey.equals(fromPubkey) && !walletPubkey.equals(feePayerPubkey)) {
+            alert("Conecta Phantom con la wallet que firme (origen o fee payer).");
+            return;
+          }
+
+          // Obtener blockhash reciente
+          const { blockhash } = await connection.getLatestBlockhash();
+
+          // Crear transacción
+          let transaction = new Transaction({
+            recentBlockhash: blockhash,
+            feePayer: feePayerPubkey,
+          });
+
+          // Añadir instrucción de transferencia
+          transaction.add(
+            SystemProgram.transfer({
+              fromPubkey,
+              toPubkey,
+              lamports: amountSol * 1e9,
+            })
+          );
+
+          // Solicitar firma con Phantom
+          transaction = await window.solana.signTransaction(transaction);
+
+          // Mostrar la transacción firmada (base64)
+          const signedTxBase64 = transaction.serialize().toString('base64');
+          output.textContent = "Transacción firmada (base64):\n" + signedTxBase64 + "\n\n";
+          output.textContent += "Puedes copiar esta cadena y usarla para enviarla al siguiente firmante o a la red Solana.\n";
+
+        } catch (e) {
+          output.textContent = "Error: " + e.message;
         }
       };
-
-      try {
-        const response = await fetch("https://staging-api.transak.com/api/v2/orders", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "apiKey": "53f15273-7e27-400d-8938-ea3b1fd7df71" // Tu API Key de Transak
-          },
-          body: JSON.stringify(data)
-        });
-
-        const result = await response.json();
-        responseElement.textContent = JSON.stringify(result, null, 2);
-      } catch (error) {
-        responseElement.textContent = "Error: " + error;
-      }
-    });
+    })();
   </script>
 </body>
 </html>
